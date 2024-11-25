@@ -27,13 +27,13 @@
   </style>
 </head>
 <body class="container py-4">
-  <h1 class="mb-4">Search Address with OpenStreetMap</h1>
+  <h1 class="mb-4">Cari Alamat dengan OpenStreetMap</h1>
   
-  <label for="searchSelect" class="form-label">Search and select location:</label>
+  <label for="searchSelect" class="form-label">Cari dan pilih lokasi:</label>
   <select id="searchSelect" class="form-control"></select>
   
   <div id="map" class="mt-4"></div>
-  <p class="mt-4"><strong>Full Address:</strong> <span id="fullAddress">-</span></p>
+  <p class="mt-4"><strong>Alamat Lengkap:</strong> <span id="fullAddress">-</span></p>
   <p><strong>Latitude:</strong> <span id="latitude">-</span></p>
   <p><strong>Longitude:</strong> <span id="longitude">-</span></p>
 
@@ -47,27 +47,49 @@
 
     let marker;
 
-    // Initialize Select2 with AJAX
+    let excludedPlaceIds = []; // Menyimpan place_id yang sudah ditampilkan
+
     $('#searchSelect').select2({
-      placeholder: "Search for a location",
+      placeholder: "Cari lokasi",
       allowClear: true,
-      minimumInputLength: 3, // Minimum characters to trigger search
+      minimumInputLength: 3,
       ajax: {
-        url: "https://nominatim.openstreetmap.org/search", // Nominatim API
+        url: "https://nominatim.openstreetmap.org/search",
         dataType: "json",
-        delay: 250, // Delay to avoid spamming the API
-        data: (params) => ({
-          format: "json",
-          q: params.term // Search term
-        }),
-        processResults: (data) => ({
-          results: data.map(item => ({
-            id: JSON.stringify(item), // Pass the full object as JSON
-            text: item.display_name
-          }))
-        }),
-        cache: true
-      }
+        delay: 250,
+        data: (params) => {
+          const query = params.term || "";
+          const limit = 10;
+
+          return {
+            format: "json",
+            q: query,
+            addressdetails: 1,
+            limit: limit,
+            exclude_place_ids: excludedPlaceIds.join(',') // Tambahkan place_id yang sudah ditampilkan
+          };
+        },
+        processResults: (data, params) => {
+          // Update excludedPlaceIds dengan hasil baru
+          data.forEach(item => {
+            if (!excludedPlaceIds.includes(item.place_id)) {
+              excludedPlaceIds.push(item.place_id);
+            }
+          });
+
+          // Transform hasil menjadi format Select2
+          return {
+            results: data.map(item => ({
+              id: JSON.stringify(item),
+              text: item.display_name,
+            })),
+            pagination: {
+              more: data.length > 0, // Jika masih ada data baru, maka pagination diaktifkan
+            },
+          };
+        },
+        cache: true,
+      },
     });
 
     // Handle location selection
